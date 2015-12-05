@@ -1,0 +1,121 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+<meta http-equiv="refresh" content="90">
+<meta charset="UTF-8"> 
+<script type="text/javascript" src="/js/jquery.min.js"></script>
+<script type="text/javascript" src='/out_stats.js'></script>
+<script type="text/javascript" src='/power_status.js'></script>
+<script type="text/javascript">
+var on_png='http://goblin.yuhu.biz/on.png';
+var off_png='http://goblin.yuhu.biz/off.png'
+var temp = 0;
+function read_logs() {
+	$.ajax('switch_logs.sh', {
+		success: function(data) {
+			$('#log').html(data);
+		}
+	});
+}
+window.onload = function () {
+	if (power_status) {
+		document.getElementById('onoff').src = on_png;
+	} else {
+		document.getElementById('onoff').src = off_png;
+	}
+	var mypoints = myData();
+	var chart = new CanvasJS.Chart("chartContainer", {
+		theme: "theme2",
+		zoomEnabled: true,
+		title:{ text: "Home temperatures" },
+		animationEnabled: true,
+		connectSeparatedPoints: true,
+		axisX:{labelAngle: 30},
+		axisY:{interval: 2,gridThickness: 1,gridColor: "#BBBBBB"},
+		data: [{
+			type: "line",
+			name: "Livingroom",
+			showInLegend: true,
+			markerType: "none",
+			xValueType: "dateTime",
+			//lineThickness: 3,        
+			color: "#F08080",
+        	dataPoints: mypoints
+		},{
+			type: "line",
+			name: "Heating ON",
+			showInLegend: true,
+			markerType: "none",
+			xValueType: "dateTime",
+			color: "#20B2AA",
+        	dataPoints: [],
+		}],
+	});
+	chart.render();
+	var avgtemp = 0;
+	var arraylen = mypoints.length;
+	var lastPoint = mypoints[arraylen - 1].y;
+	var total = 0;
+	var count = 0;
+	var i = 0;
+	for (; i < arraylen; i++) {
+		total = total + mypoints[i].y;
+		count++;
+	}
+	if (count > 0) {
+		avgtemp = total/count;
+	}
+	temp = lastPoint;
+	document.getElementById('currentTemp').innerHTML = "Living room current temperature: " + lastPoint + " C  Average temprature for the period(5days): " + Number(avgtemp.toFixed(2)) + " C";
+	read_logs();
+}
+function turn(e) {
+
+	if (e.src == on_png) {
+		$.ajax('change.sh', {
+			data: 'off',
+			headers: { 'TEMP' : temp },
+			success: function(data) {
+				$('#notification-bar').text('The heating has been turned off.');
+				read_logs();
+				setTimeout(function(){$('#notification-bar').text('');},5000);
+			},
+			error: function() {
+				$('#notification-bar').text('An error occurred');
+				setTimeout(function(){$('#notification-bar').text('');}, 15000);
+			}
+		});
+		e.src = off_png;
+	} else {
+		$.ajax('change.sh', {
+			data: 'on',
+			headers: { 'TEMP' : temp },
+			success: function(data) {
+				$('#notification-bar').text('The heating has been turned on.');
+				read_logs();
+				setTimeout(function(){$('#notification-bar').text('');}, 5000);
+			},
+			error: function() {
+				$('#notification-bar').text('An error occurred');
+				setTimeout(function(){$('#notification-bar').text('');}, 15000);
+			}
+		});
+		e.src = on_png;
+	}
+}
+
+</script>
+<script type="text/javascript" src="/js/canvasjs.min.js"></script>
+<body>
+  <div id="currentTemp"></div>
+  <div id="chartContainer" style="height: 300px; width: 100%;"></div>
+  <div id="controls">
+	<img id='onoff' src='on.png' onClick='javascript:turn(this)'>
+  </div>
+  <br />
+  <div id="notification-bar"></div><br />
+  LOG:
+  <div id="log"></div>
+</body>
+</html>
+
