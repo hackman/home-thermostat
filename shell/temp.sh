@@ -25,16 +25,17 @@ if [ -n "$temp" -a -n "$humi" ]; then
 		exit 0
 	fi
 	sed -i "\$i{ x: ${x}000, y: $temp }," $out_stats
-	low=$(echo "$temp < $min_temp"|bc)
-	if [ "$low" == 1 ]; then
+	# if $temp is lower then $min_temp
+	if echo "$temp $min_temp"|awk '{if($1>$2)exit 1}'; then
 		# Turn ON the heating
 		if [[ "$power" =~ off ]]; then
 			curl http://$arduino/arduino/digital/7/0
 			echo "$(date) temp $temp C, turning the heating ON " >> $heating_log
 		fi
 	fi
-	high=$(echo "$temp > $max_temp"|bc)
 	if [ "$high" == 1 ]; then
+	# if $temp is higher then $max_temp
+	if echo "$temp $max_temp"|awk '{if($1<$2)exit 1}'; then
 		# Turn OFF the heating
 		if [[ "$power" =~ on ]]; then
 			curl http://$arduino/arduino/digital/7/1
