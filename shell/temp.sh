@@ -12,6 +12,8 @@ info=($(curl http://$arduino/arduino/digital/8 2>/dev/null))
 # Get the current power state
 power=$(curl http://$arduino/arduino/digital/7 2>/dev/null)
 heating_log='/var/log/heating.log'
+# 5 days + 3 lines for the JSON structure
+retantion=7203
 
 temp=${info[1]}
 temp=${temp/C/}
@@ -47,7 +49,7 @@ else
 fi
 
 # Rotation is done here
-if [ "$(wc -l $out_stats|cut -d ' '  -f 1)" -gt 7203 ] ; then
+if [ "$(wc -l $out_stats|cut -d ' '  -f 1)" -gt $retantion ] ; then
 	first_line=($(head -n3 $out_stats |tail -n1))
 	echo ${first_line[*]} >> $log_stats
 	sed -i "/${first_line[2]}/d" $out_stats
