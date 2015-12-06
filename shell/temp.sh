@@ -21,13 +21,15 @@ humi=${info[3]}
 
 x=$(date +%s)
 if [ -n "$temp" -a -n "$humi" ]; then
+	# in case the arduino returned an error
 	if [[ "$temp" =~ ERR ]]; then
 		exit 0
 	fi
+	# Add the new values to the storage file
 	sed -i "\$i{ x: ${x}000, y: $temp }," $out_stats
 	# if $temp is lower then $min_temp
 	if echo "$temp $min_temp"|awk '{if($1>$2)exit 1}'; then
-		# Turn ON the heating
+		# Turn ON the heating, only if it is currently off
 		if [[ "$power" =~ off ]]; then
 			curl http://$arduino/arduino/digital/7/0
 			echo "$(date) temp $temp C, turning the heating ON " >> $heating_log
@@ -36,13 +38,14 @@ if [ -n "$temp" -a -n "$humi" ]; then
 	if [ "$high" == 1 ]; then
 	# if $temp is higher then $max_temp
 	if echo "$temp $max_temp"|awk '{if($1<$2)exit 1}'; then
-		# Turn OFF the heating
+		# Turn OFF the heating, only if it is currently on
 		if [[ "$power" =~ on ]]; then
 			curl http://$arduino/arduino/digital/7/1
 			echo "$(date) temp $temp C, turning the heating OFF" >> $heating_log
 		fi
 	fi
 fi
+# Save the current power status for the web page
 if [[ "$power" =~ off ]]; then
 	echo 'var power_status = 0;' >$js_dir/power_status.js
 else
