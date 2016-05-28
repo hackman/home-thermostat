@@ -29,7 +29,7 @@
 
 */
 
-#define VERSION 0.3
+#define VERSION 0.4
 #include <Bridge.h>
 #include <BridgeServer.h>
 #include <BridgeClient.h>
@@ -41,8 +41,8 @@
 #define DHTTYPE DHT22
 DHT dht(DHTPIN, DHTTYPE);
 
-#define HEATING 7
-#define PUMP 6
+#define HEATER_PUMP 7
+#define FLOOR_PUMP 6
 
 // Listen to the default port 5555, the Yún webserver
 // will forward there all the HTTP requests you send
@@ -51,10 +51,14 @@ BridgeServer server;
 int pins[13] = { 0 };
 
 void setup() {
+  // Set the pumps to OFF
+  pinMode(HEATER_PUMP, OUTPUT);
+  pinMode(FLOOR_PUMP, OUTPUT);
+  digitalWrite(HEATER_PUMP, HIGH);
+  digitalWrite(FLOOR_PUMP, HIGH);
+
   // Bridge startup
   pinMode(13, OUTPUT);
-  pinMode(HEATING, OUTPUT);
-  pinMode(PUMP, OUTPUT);
   digitalWrite(13, LOW);
   Bridge.begin();
   digitalWrite(13, HIGH);
