@@ -31,8 +31,8 @@
 
 #define VERSION 0.4
 #include <Bridge.h>
-#include <BridgeServer.h>
-#include <BridgeClient.h>
+#include <YunServer.h>
+#include <YunClient.h>
 #include <DHT.h>
 
 
@@ -46,7 +46,7 @@ DHT dht(DHTPIN, DHTTYPE);
 
 // Listen to the default port 5555, the Yún webserver
 // will forward there all the HTTP requests you send
-BridgeServer server;
+YunServer server;
 
 int pins[13] = { 0 };
 
@@ -58,6 +58,7 @@ void setup() {
   digitalWrite(FLOOR_PUMP, HIGH);
 
   // Bridge startup
+  Serial.begin(9600);
   pinMode(13, OUTPUT);
   digitalWrite(13, LOW);
   Bridge.begin();
@@ -71,7 +72,7 @@ void setup() {
 
 void loop() {
   // Get clients coming from server
-  BridgeClient client = server.accept();
+  YunClient client = server.accept();
 
   // There is a new client?
   if (client) {
@@ -85,7 +86,7 @@ void loop() {
   delay(50); // Poll every 50ms
 }
 
-void process(BridgeClient client) {
+void process(YunClient client) {
   // read the command
   String command = client.readStringUntil('/');
 
@@ -105,7 +106,7 @@ void process(BridgeClient client) {
   }
 }
 
-void digitalCommand(BridgeClient client) {
+void digitalCommand(YunClient client) {
   int pin, value;
   float h, t;
 
@@ -156,7 +157,7 @@ void digitalCommand(BridgeClient client) {
   Bridge.put(key, String(value));
 }
 
-void analogCommand(BridgeClient client) {
+void analogCommand(YunClient client) {
   int pin, value;
 
   // Read pin number
@@ -196,7 +197,7 @@ void analogCommand(BridgeClient client) {
   }
 }
 
-void modeCommand(BridgeClient client) {
+void modeCommand(YunClient client) {
   int pin;
 
   // Read pin number
