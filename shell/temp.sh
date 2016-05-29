@@ -1,8 +1,9 @@
 #!/bin/bash
 
+version='2.0'
 min_temp='24.7'
 max_temp='25.3'
-arduino='10.2.2.188'
+arduino='10.2.2.195'
 js_dir='/var/www/html/js'
 base_dir='/var/www/html/'
 trigger='/var/run/heating'
@@ -25,7 +26,7 @@ manual_off=0
 x=$(date +%s)
 if [ -n "$temp" -a -n "$humi" ]; then
 	# in case the arduino returned an error
-	if [[ "$temp" =~ ERR ]]; then
+	if ! [[ "$temp" =~ ^[0-9.]+$ ]]; then
 		exit 0
 	fi
 
