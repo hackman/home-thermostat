@@ -29,7 +29,7 @@
 
 */
 
-#define VERSION 0.4
+#define VERSION 0.5
 #include <Bridge.h>
 #include <YunServer.h>
 #include <YunClient.h>
@@ -56,6 +56,8 @@ void setup() {
   pinMode(FLOOR_PUMP, OUTPUT);
   digitalWrite(HEATER_PUMP, HIGH);
   digitalWrite(FLOOR_PUMP, HIGH);
+  pins[7]=1;
+  pins[6]=1;
 
   // Bridge startup
   Serial.begin(9600);
