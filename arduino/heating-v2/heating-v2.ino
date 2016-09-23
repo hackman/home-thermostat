@@ -24,8 +24,8 @@
 							   and humidity as expored by the 
 							   DHT22 sensor, connected on pin 8
  PIN 8 - DHT22 sensor
- PIN 7 - Heating relay
- PIN 6 - PUMP relay
+ PIN 7 - Heating pump relay
+ PIN 6 - Floor pump relay
 
 */
 
@@ -43,12 +43,18 @@ DHT dht(DHTPIN, DHTTYPE);
 
 #define HEATER_PUMP 7
 #define FLOOR_PUMP 6
+// in miliseconds
+#define STEP_BETWEEN_MEASUREMENTS 5000
 
 // Listen to the default port 5555, the Yún webserver
 // will forward there all the HTTP requests you send
 YunServer server;
 
 int pins[13] = { 0 };
+unsigned long current_time = 0;
+unsigned long last_time = 0;
+float humidity = 0.0;
+float temperature = 0.0;
 
 void setup() {
   // Set the pumps to OFF
@@ -108,24 +114,41 @@ void process(YunClient client) {
   }
 }
 
+int ready_to_update() {
+	current_time = millis();
+	int ret = 0;
+	// if the millis() have overflown
+	// once every 50 days it will take 10secs to update the timer :). Which should be OK.
+	if (current_time < last_time) {
+		last_time = current_time;
+	}
+	if ((current_time - last_time) > STEP_BETWEEN_MEASUREMENTS) {
+		ret = 1;
+	}
+	last_time = current_time;
+	return ret;
+}
+
+
 void digitalCommand(YunClient client) {
   int pin, value;
-  float h, t;
 
   // Read pin number
   pin = client.parseInt();
 
   if (pin == 8) {
-    h = dht.readHumidity();
-    t = dht.readTemperature();
-    if (isnan(h) || isnan(t)) {
-      client.println("Failed to read from the DHT sensor!");
-      return;
-    }
+	if (ready_to_update()) {
+	    humidity = dht.readHumidity();
+	    temperature = dht.readTemperature();
+	    if (isnan(humidity) || isnan(temperature)) {
+	      client.println("Failed to read from the DHT sensor!");
+	      return;
+	    }
+	}
     client.print("Temperature: ");
-    client.print(t);
+    client.print(temperature);
     client.print("C  Humidity: ");
-    client.println(h);
+    client.println(humidity);
     return;
   }
 
@@ -145,13 +168,6 @@ void digitalCommand(YunClient client) {
   } else {
     client.println("on");
   }
-  // Send feedback to client
-  /*
-  client.print(F("Pin D"));
-  client.print(pin);
-  client.print(F(" set to "));
-  client.println(value);
-  */
 
   // Update datastore key with the current pin value
   String key = "D";
