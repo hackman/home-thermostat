@@ -6,7 +6,7 @@ use YAML::XS qw(LoadFile);
 use LWP::Simple qw($ua get);
 use Data::Dumper;
 
-my $VERSION = 1.1;
+my $VERSION = 1.2;
 our $conf = LoadFile('config.yaml');
 my $heating_state = 0;
 my $pump_state = 0;
@@ -46,7 +46,7 @@ sub toggle_heating {
 			if ($v == 0) {
 				logger "Turning ON $k";
 				$sensors_ref->{$k}{start_time} = time;
-#				get("$conf_ref->{switches}->{$k}/1");
+				get("$conf_ref->{switches}->{$k}/0");
 			} else {
 				logger "$k already on" if $conf_ref->{debug};
 			}
@@ -55,8 +55,8 @@ sub toggle_heating {
 		while (my ($k,$v) = each %current_state) {
 			# turn off, only if the switch is currently on
 			if ($v == 1) {
-				logger "Turning OFF $k"
-#				get("$conf_ref->{switches}->{$k}/0");
+				logger "Turning OFF $k";
+				get("$conf_ref->{switches}->{$k}/1");
 			} else {
 				logger "$k already off" if $conf_ref->{debug};
 			}
@@ -92,6 +92,8 @@ sub collect_data {
 		if ($conf_ref->{sensors}->{$k}->{js_log}) {
 			my $t = time;
 			open my $f, '>>', $conf_ref->{sensors}->{$k}->{js_file} or logger "Unable to open sensor js_file $conf_ref->{sensors}->{$k}->{js_file}: $!";
+			# skip the last line of the file
+			seek($f,-23,2);
 			printf $f "{ x: %d000, y: %2.2f },", $t, $sensors_ref->{$k}[0];
 			close $f;
 		}
