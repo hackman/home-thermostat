@@ -7,7 +7,7 @@ use LWP::Simple qw($ua get);
 use Path::Tiny qw(path);
 use Data::Dumper;
 
-my $VERSION = 1.3;
+my $VERSION = 2.0;
 our $conf = LoadFile('config.yaml');
 my $heating_state = 0;
 my $pump_state = 0;
@@ -23,6 +23,16 @@ select((select($LOG), $| = 1)[0]);
 sub logger {
 	print $_[0] . "\n" if $conf->{debug};
 	print $LOG strftime('%b %d %H:%M:%S', localtime(time)) . ' ' . $_[0] . "\n";
+}
+
+sub get_current_power_status {
+	my $conf_ref = shift;
+	my @stat = stat($conf_ref->{heating_status});
+	open my $f, '<', $conf_ref->{heating_status};
+	my $content = <$f>;
+	close $f;
+	$content =~ s/^.*([0-1]);[\r\n]*$/$1/;
+	return ($stat[9], $content);
 }
 
 sub toggle_heating {
@@ -48,6 +58,9 @@ sub toggle_heating {
 				logger "Turning ON $k";
 				$sensors_ref->{$k}{start_time} = time;
 				get("$conf_ref->{switches}->{$k}/0");
+				open my $f, '>', $conf_ref->{heating_status};
+				print $f 'var power_status = 1;';
+				close $f;
 			} else {
 				logger "$k already on" if $conf_ref->{debug};
 			}
@@ -58,6 +71,9 @@ sub toggle_heating {
 			if ($v == 1) {
 				logger "Turning OFF $k";
 				get("$conf_ref->{switches}->{$k}/1");
+				open my $f, '>', $conf_ref->{heating_status};
+				print $f 'var power_status = 0;';
+				close $f;
 			} else {
 				logger "$k already off" if $conf_ref->{debug};
 			}
@@ -167,6 +183,16 @@ sub check_sensor_data {
 	} else {
 		logger "Removing the manual override";
 		unlink $conf_ref->{manual_override}->{file};
+	}
+
+	# Do not stop the heating if it has worked for less then minimum working time
+	my ($start_time, $status) = get_current_power_status($conf_ref);
+	if ($toggle && $status) {
+		my $work_time = $start_time - (time - $conf_ref->{min_work_time});
+		if ($work_time > 0) {
+			logger "Disable stopping, because the minimum work time($conf_ref->{min_work_time}). The heating has worked for $work_time seconds";
+			$toggle = 0;
+		}
 	}
 	
 	RET:
