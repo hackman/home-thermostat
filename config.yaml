@@ -5,6 +5,8 @@ log: /var/log/heating.log
 min_time: 1800
 min_temp: 24.0
 kill_temp: 30.0
+min_work_time: 1800
+heating_status: /var/www/html/js/power_status.js
 switches:
     heating_pump: http://10.2.2.195/arduino/digital/6
     underfloor_pump: http://10.2.2.195/arduino/digital/7
