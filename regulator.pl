@@ -1,12 +1,13 @@
-#!/usr/bin/perl
+#!/usr/local/bin/perl
 use strict;
 use warnings;
 use POSIX qw(strftime);
 use YAML::XS qw(LoadFile);
 use LWP::Simple qw($ua get);
+use Path::Tiny qw(path);
 use Data::Dumper;
 
-my $VERSION = 1.2;
+my $VERSION = 1.3;
 our $conf = LoadFile('config.yaml');
 my $heating_state = 0;
 my $pump_state = 0;
@@ -88,14 +89,13 @@ sub collect_data {
 			logger "Skipping sensor $k, because it did not return correct values" if $conf_ref->{debug};
 			next;
 		}
-		logger sprintf("Checking sensor %s:\t %2.2f C %2.2f %% humidity", $k, $sensors_ref->{$k}[0], $sensors_ref->{$k}[1]);
+		logger sprintf("Checking sensor %s:\t %2.2f C %2.2f %% humidity", $k, $sensors_ref->{$k}[0], $sensors_ref->{$k}[1]) if $conf_ref->{debug};
 		if ($conf_ref->{sensors}->{$k}->{js_log}) {
-			my $t = time;
-			open my $f, '>>', $conf_ref->{sensors}->{$k}->{js_file} or logger "Unable to open sensor js_file $conf_ref->{sensors}->{$k}->{js_file}: $!";
-			# skip the last line of the file
-			seek($f,-23,2);
-			printf $f "{ x: %d000, y: %2.2f },", $t, $sensors_ref->{$k}[0];
-			close $f;
+			my $f = path($conf_ref->{sensors}->{$k}->{js_file});
+			my $d = $f->slurp_utf8;
+			my $m = sprintf "{ x: %d000, y: %2.2f },\n]; return mypoints; };\n", time, $sensors_ref->{$k}[0];
+			$d =~ s/]; return mypoints; };\n/$m/;
+			$f->spew_utf8($d);
 		}
 	}
 	
