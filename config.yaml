@@ -25,9 +25,9 @@ sensors:
         js_file: /var/www/html/js/out_stats.js
     livingroom:
         url: http://10.2.2.246/temp.py
-        min_temp:  24.9
-        max_temp:  25.8
-        kill_temp: 26.0
+        min_temp:  23.5
+        max_temp:  24.5
+        kill_temp: 25.0
         start_time: 8:00
         stop_time:  20:00
         js_log: 0
