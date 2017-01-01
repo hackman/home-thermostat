@@ -7,10 +7,11 @@ use LWP::Simple qw($ua get);
 use Path::Tiny qw(path);
 use Data::Dumper;
 
-my $VERSION = 2.0;
+my $VERSION = 3.0;
 our $conf = LoadFile('config.yaml');
 my $heating_state = 0;
 my $pump_state = 0;
+my $reload_conf = 1;
 my %sensors;
 our $LOG;
 
@@ -24,6 +25,20 @@ sub logger {
 	print $_[0] . "\n" if $conf->{debug};
 	print $LOG strftime('%b %d %H:%M:%S', localtime(time)) . ' ' . $_[0] . "\n";
 }
+
+sub sig_usr1 {
+	while (my ($k,$v) = each %sensors) {
+		logger sprintf("Sensor %-16s\t% 2.2f C % 2.2f %% humidity", $k, $v->[0], $v->[1]);
+	}
+}
+
+sub reload_config {
+	$reload_conf = 1;
+	logger "Reloading configuration";
+}
+
+$SIG{USR1} = \&sig_usr1;
+$SIG{HUP} = \&reload_config;
 
 sub get_current_power_status {
 	my $conf_ref = shift;
@@ -39,6 +54,7 @@ sub toggle_heating {
 	my $conf_ref = shift;
 	my $sensors_ref = shift;
 	my $toggle = shift;
+	my $decision = shift;
 	my %current_state = ();
 	while (my $switch = each %{$conf_ref->{switches}}) {
 		$current_state{$switch} = 2;
@@ -51,16 +67,25 @@ sub toggle_heating {
 		}
 	}
 
+	my $h = path('/var/www/html/js/heating-on.js');
+	my $d = $h->slurp_utf8;
+	my $t = time;
+	my $m = '';
+	my $print = 0;
 	if ($toggle) {
 		while (my ($k,$v) = each %current_state) {
 			# turn on, only if the switch is currently off
 			if ($v == 0) {
-				logger "Turning ON $k";
+				logger "Turning ON $k" if $conf_ref->{debug};
 				$sensors_ref->{$k}{start_time} = time;
 				get("$conf_ref->{switches}->{$k}/0");
 				open my $f, '>', $conf_ref->{heating_status};
 				print $f 'var power_status = 1;';
 				close $f;
+				$m = sprintf "{ x: %d000, y: %2.2f },\n{ x: %d000, y: %2.2f },\n]; return mypoints; };\n", $t-1, 20.50, $t, 23.50;
+				$d =~ s/]; return mypoints; };\n/$m/;
+				$h->spew_utf8($d);
+				$print = 1;
 			} else {
 				logger "$k already on" if $conf_ref->{debug};
 			}
@@ -69,16 +94,21 @@ sub toggle_heating {
 		while (my ($k,$v) = each %current_state) {
 			# turn off, only if the switch is currently on
 			if ($v == 1) {
-				logger "Turning OFF $k";
+				logger "Turning OFF $k" if $conf_ref->{debug};
 				get("$conf_ref->{switches}->{$k}/1");
 				open my $f, '>', $conf_ref->{heating_status};
 				print $f 'var power_status = 0;';
 				close $f;
+				$m = sprintf "{ x: %d000, y: %2.2f },\n{ x: %d000, y: %2.2f },\n]; return mypoints; };\n", $t, 23.50, $t+1, 20.50;
+				$d =~ s/]; return mypoints; };\n/$m/;
+				$h->spew_utf8($d);
+				$print = 1;
 			} else {
 				logger "$k already off" if $conf_ref->{debug};
 			}
 		}
 	}
+	logger $decision if $print;
 }
 
 sub get_temp {
@@ -122,6 +152,7 @@ sub check_sensor_data {
 	my $sensors_ref = shift;
 	my $toggle = -1;
 	my @time = localtime(time);
+	my $last_decision = '';
 	# time[1] - minutes
 	# time[2] - hours
 
@@ -133,15 +164,15 @@ sub check_sensor_data {
 		my ($start_hour,$start_min) = split /:/, $conf->{sensors}->{$sensor}->{start_time};
 		my ($stop_hour,$stop_min) = split /:/, $conf->{sensors}->{$sensor}->{stop_time};
 	
-		logger "Sensor: $sensor kill_temp: $conf_ref->{sensors}->{$sensor}->{kill_temp} max_temp: $conf_ref->{sensors}->{$sensor}->{max_temp} min_temp: $conf_ref->{sensors}->{$sensor}->{min_temp}" if $conf_ref->{debug};
+#		logger "Sensor: $sensor kill_temp: $conf_ref->{sensors}->{$sensor}->{kill_temp} max_temp: $conf_ref->{sensors}->{$sensor}->{max_temp} min_temp: $conf_ref->{sensors}->{$sensor}->{min_temp}" if $conf_ref->{debug};
 
 
 		if ($sensors_ref->{$sensor}[0] > $conf_ref->{sensors}->{$sensor}->{max_temp}) {
-			logger "Turning OFF because of sensor($sensor) max temp($sensors_ref->{$sensor}[0] C)" if $conf_ref->{debug};
+			$last_decision = "Turning OFF because of sensor($sensor) max temp($sensors_ref->{$sensor}[0] > $conf_ref->{sensors}->{$sensor}->{max_temp} C)";
 			$toggle = 0;
 		}
 		if ($sensors_ref->{$sensor}[0] <= $conf_ref->{sensors}->{$sensor}->{min_temp}) {
-			logger "Turning ON because of sensor($sensor) min_temp($sensors_ref->{$sensor}[0] C)" if $conf_ref->{debug};
+			$last_decision = "Turning ON because of sensor($sensor) min_temp($sensors_ref->{$sensor}[0] <= $conf_ref->{sensors}->{$sensor}->{min_temp} C)";
 			$toggle = 1;
 		}
 
@@ -151,24 +182,24 @@ sub check_sensor_data {
 		if ($time[2] >= $start_hour and $time[2] <= $stop_hour and $time[1] >= $start_min and $time[1] <= $stop_min) {
 			if ($sensors_ref->{$sensor}[0] > $conf_ref->{kill_temp} or 
 				$sensors_ref->{$sensor}[0] > $conf_ref->{sensors}->{$sensor}->{kill_temp}) {
-				logger "Turning OFF because of sensor($conf_ref->{sensors}->{$sensor}->{kill_temp} C) ot global kill temp($conf_ref->{kill_temp} C)" if $conf_ref->{debug};
+				$last_decision = "Turning OFF because of sensor($sensor:$conf_ref->{sensors}->{$sensor}->{kill_temp} C) > global kill temp($conf_ref->{kill_temp} C)";
 				$toggle = 0;
 			}
 			if ($sensors_ref->{$sensor}[0] <= $conf_ref->{min_temp}) {
-				logger "Turning ON because of global min_temp($conf_ref->{min_temp} C)" if $conf_ref->{debug};
+				$last_decision = "Turning ON because of global min_temp($conf_ref->{min_temp} <= $conf_ref->{sensors}->{$sensor}->{max_temp} C)";
 				$toggle = 1;
 			}
 		}
 
 		if ($sensors_ref->{$sensor}[0] <= $conf_ref->{min_temp}) {
-			logger "Turning ON because of global min_temp($conf_ref->{min_temp} C)" if $conf_ref->{debug};
+			$last_decision = "Turning ON because of sensor($sensor) temp $sensor:$sensors_ref->{$sensor}[0] C < global min_temp $conf_ref->{min_temp} C";
 			$toggle = 1;
 		}
 	}
 
 	# Do not turn off the burner if it has worked less then min_time
 	if ($toggle == 0 && defined($sensors_ref->{start_time}) && (time - $sensors_ref->{start_time} < $conf_ref->{min_time})) {
-		logger "Turning ON because of minimum time($conf_ref->{min_time} seconds)" if $conf_ref->{debug};
+		$last_decision = "Turning ON because of minimum time($conf_ref->{min_time} seconds)";
 		$toggle = 1;
 	}
 
@@ -178,7 +209,7 @@ sub check_sensor_data {
 	goto RET if ($#override_stat < 0);
 
 	if (time - $conf_ref->{manual_override}->{duration} < $override_stat[9]) {
-		logger "Turning ON because of manual override" if $conf_ref->{debug};
+		$last_decision = "Turning ON because of manual override";
 		$toggle = 1;
 	} else {
 		logger "Removing the manual override";
@@ -187,7 +218,7 @@ sub check_sensor_data {
 
 	# Do not stop the heating if it has worked for less then minimum working time
 	my ($start_time, $status) = get_current_power_status($conf_ref);
-	if ($toggle && $status) {
+	if ($toggle == 0 && $status == 1) {
 		my $work_time = $start_time - (time - $conf_ref->{min_work_time});
 		if ($work_time > 0) {
 			logger "Disable stopping, because the minimum work time($conf_ref->{min_work_time}). The heating has worked for $work_time seconds";
@@ -197,17 +228,18 @@ sub check_sensor_data {
 	
 	RET:
 	logger "Toggle: $toggle" if $conf_ref->{debug};
-	return $toggle;
+	return ($toggle, $last_decision);
 }
 
 sub main {
 	my $toggle = -1;
+	my $decision = '';
 	collect_data($conf, \%sensors);
 	
-	$toggle = check_sensor_data($conf, \%sensors);
+	($toggle, $decision) = check_sensor_data($conf, \%sensors);
 
 	# Toggle the heating only if any rule has been matched
-	toggle_heating($conf, \%sensors, $toggle) if ($toggle > -1);
+	toggle_heating($conf, \%sensors, $toggle, $decision) if ($toggle > -1);
 }
 
 logger "Staring $0 $VERSION";
@@ -215,6 +247,10 @@ if ($conf->{debug}) {
 	main;
 } else {
 	while (1) {
+		if ($reload_conf) {
+			$conf = LoadFile('config.yaml');
+			$reload_conf = 0;
+		}
 		main;
 		sleep($conf->{check_interval});
 	}
