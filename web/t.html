@@ -139,7 +139,7 @@ var sensors = {
 	'kitchen': [ 'myData', 'Kitchen', 0, 0, 1, '#0066cc' ],
 	'livingroom': [ 'livingroomData', 'Livingroom', 0, 0, 1, '#00b359' ],
 	'heating': [ 'heatingData', 'Heating ON', 0, 0, 0, '#b300b3' ],
-	'bedroom': [ 'bedroomData', 'Bedroom', 0, 0, 1 ],
+	'bedroom': [ 'bedroomData', 'Bedroom', 0, 0, 0 ],
 };
 
 function read_logs() {
@@ -148,18 +148,6 @@ function read_logs() {
 			$('#log').html(data);
 		}
 	});
-}
-function get_temp(points) {
-	var total = 0;
-	var len = points.length;
-	for (i = 0; i < len; i++) {
-		total += points[i].y;
-	}
-	if (len > 0) {
-		return [points[len - 1].y, total/len];
-	} else {
-		return [points[len - 1].y, 0];
-	}
 }
 window.onload = function () {
 	if (power_status) {
@@ -170,10 +158,9 @@ window.onload = function () {
 		$("#toggle").addClass("greenButton");
 	}
 
-
 	var chart_data = new Array();
-
 	for (x in sensors) {
+		// skip lines that does not have datapoints
 		if (!jQuery.isFunction(window[sensors[x][0]])) {
 			continue;
 		}
@@ -191,9 +178,16 @@ window.onload = function () {
 		if (typeof sensors[x][5] !== 'undefined') {
 			a.color = sensors[x][5];
 		}
-		var t = get_temp(a.dataPoints);
-		sensors[x][2] = t[0];
-		sensors[x][3] = t[1];
+		var total = 0;
+		var len = a.dataPoints.length;
+		sensors[x][2] = a.dataPoints[len-1].y;
+		sensors[x][3] = 0;
+		for (i = 0; i < len; i++) {
+			total += a.dataPoints[i].y;
+		}
+		if (len > 0) {
+			sensors[x][3] = total/len;
+		}
 
 		// This is specific only for my setup
 		if (a.dataPoints[a.dataPoints.length-1].y == 23.50) {
@@ -203,7 +197,6 @@ window.onload = function () {
 		}
 
 		chart_data.push(a);
-		console.log(x + " temp: " + sensors[x][2] + " avg: " + sensors[x][3] + " len: " + chart_data.length);
 	}
 
 	var chart = new CanvasJS.Chart("chartContainer", {
@@ -225,8 +218,8 @@ window.onload = function () {
 		if (sensors[x][4] == 0) {
 			continue;
 		}
-		current_temp += "<li>" + sensors[x][1] + " <b>" + sensors[x][2] + "</b> C</li>";
-		avg_temp += "<li>" + sensors[x][1] + " <b>" + Number(sensors[x][2].toFixed(2)) + "</b> C</li>"
+		current_temp += "<li>" + sensors[x][1] + " <b>" + sensors[x][2].toFixed(2) + "</b> C</li>";
+		avg_temp += "<li>" + sensors[x][1] + " <b>" + sensors[x][2].toFixed(2) + "</b> C</li>"
 	}
 	$("#currentTemp").html(current_temp + "</ul>");
 	$("#avgTemp").html(avg_temp + "</ul>");
