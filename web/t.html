@@ -3,13 +3,145 @@
 <head>
 <meta http-equiv="refresh" content="90">
 <meta charset="UTF-8"> 
+<style>
+body {
+	background: #d1d1e0;
+	font-family: Arial;
+}
+#chartContainer {
+	height: 300px;
+	width: 100%;
+}
+#buttons {
+	display: inline-block;
+	width: 160px;
+}
+#currentTemp {
+	display: inline-block;
+	text-align: right;
+}
+#currentTemp li {
+	list-style-type: none;
+}
+#avgTemp {
+	padding-left: 20px;
+	display: inline-block;
+	text-align: right;
+}
+#avgTemp li {
+	list-style-type: none;
+}
+#log {
+	margin-top: 0px;
+	padding: 0px;
+	padding-left: 10px;
+	background: #c2c2d6;
+	border: 1px solid #0066cc;
+}
+.greenButton {
+	-moz-box-shadow: 1px 1px 4px 1px #669999;
+	-webkit-box-shadow: 1px 1px 4px 1px #669999;
+	box-shadow: 1px 1px 4px 1px #669999;
+	background:-webkit-gradient(linear, left top, left bottom, color-stop(0.05, #74ad5a), color-stop(1, #68a54b));
+	background:-moz-linear-gradient(top, #74ad5a 5%, #68a54b 100%);
+	background:-webkit-linear-gradient(top, #74ad5a 5%, #68a54b 100%);
+	background:-o-linear-gradient(top, #74ad5a 5%, #68a54b 100%);
+	background:-ms-linear-gradient(top, #74ad5a 5%, #68a54b 100%);
+	background:linear-gradient(to bottom, #74ad5a 5%, #68a54b 100%);
+	filter:progid:DXImageTransform.Microsoft.gradient(startColorstr='#74ad5a', endColorstr='#68a54b',GradientType=0);
+	background-color:#74ad5a;
+	-moz-border-radius:10px;
+	-webkit-border-radius:10px;
+	border-radius:10px;
+	border:1px solid #3b6e22;
+	display:inline-block;
+	cursor:pointer;
+	color:#ffffff;
+	width: 85px;
+	font-family:Arial;
+	font-size:19px;
+	padding:5px 29px;
+	text-decoration:none;
+	text-shadow:1px 2px 0px #667777;
+}
+.greenButton:hover {
+	background:-webkit-gradient(linear, left top, left bottom, color-stop(0.05, #68a54b), color-stop(1, #74ad5a));
+	background:-moz-linear-gradient(top, #68a54b 5%, #74ad5a 100%);
+	background:-webkit-linear-gradient(top, #68a54b 5%, #74ad5a 100%);
+	background:-o-linear-gradient(top, #68a54b 5%, #74ad5a 100%);
+	background:-ms-linear-gradient(top, #68a54b 5%, #74ad5a 100%);
+	background:linear-gradient(to bottom, #68a54b 5%, #74ad5a 100%);
+	filter:progid:DXImageTransform.Microsoft.gradient(startColorstr='#68a54b', endColorstr='#74ad5a',GradientType=0);
+	background-color:#68a54b;
+}
+.greenButton:active {
+	position:relative;
+	top:1px;
+}
+
+.redButton {
+	-moz-box-shadow: 1px 1px 4px 1px #8a2a21;
+	-webkit-box-shadow: 1px 1px 4px 1px #8a2a21;
+	box-shadow: 1px 1px 4px 1px #8a2a21;
+	background:-webkit-gradient(linear, left top, left bottom, color-stop(0.05, #c62d1f), color-stop(1, #f24437));
+	background:-moz-linear-gradient(top, #c62d1f 5%, #f24437 100%);
+	background:-webkit-linear-gradient(top, #c62d1f 5%, #f24437 100%);
+	background:-o-linear-gradient(top, #c62d1f 5%, #f24437 100%);
+	background:-ms-linear-gradient(top, #c62d1f 5%, #f24437 100%);
+	background:linear-gradient(to bottom, #c62d1f 5%, #f24437 100%);
+	filter:progid:DXImageTransform.Microsoft.gradient(startColorstr='#c62d1f', endColorstr='#f24437',GradientType=0);
+	background-color:#c62d1f;
+	-moz-border-radius:10px;
+	-webkit-border-radius:10px;
+	border-radius:10px;
+	border:1px solid #d02718;
+	display:inline-block;
+	cursor:pointer;
+	width: 85px;
+	color:#ffffff;
+	font-family:Arial;
+	font-size:19px;
+	padding:5px 29px;
+	text-decoration:none;
+	text-shadow:1px 2px 0px #810e05;
+}
+.redButton:hover {
+	background:-webkit-gradient(linear, left top, left bottom, color-stop(0.05, #f24437), color-stop(1, #c62d1f));
+	background:-moz-linear-gradient(top, #f24437 5%, #c62d1f 100%);
+	background:-webkit-linear-gradient(top, #f24437 5%, #c62d1f 100%);
+	background:-o-linear-gradient(top, #f24437 5%, #c62d1f 100%);
+	background:-ms-linear-gradient(top, #f24437 5%, #c62d1f 100%);
+	background:linear-gradient(to bottom, #f24437 5%, #c62d1f 100%);
+	filter:progid:DXImageTransform.Microsoft.gradient(startColorstr='#f24437', endColorstr='#c62d1f',GradientType=0);
+	background-color:#f24437;
+}
+.redButton:active {
+	position:relative;
+	top:1px;
+}
+</style>
 <script type="text/javascript" src="/js/jquery.min.js"></script>
-<script type="text/javascript" src='/out_stats.js'></script>
-<script type="text/javascript" src='/power_status.js'></script>
+<script type="text/javascript" src="/js/canvasjs.min.js"></script>
+<script type="text/javascript" src='/js/out_stats.js'></script>
+<script type="text/javascript" src='/js/livingrootm_stats.js'></script>
+<script type="text/javascript" src='/js/heating-on.js'></script>
+<script type="text/javascript" src='/js/power_status.js'></script>
 <script type="text/javascript">
-var on_png='http://goblin.yuhu.biz/on.png';
-var off_png='http://goblin.yuhu.biz/off.png'
 var temp = 0;
+// sensor:
+// [0] - data function
+// [1] - name of the chart line
+// [2] - last reading (set by get_temp())
+// [3] - average temp (set by get_temp())
+// [4] - should current reading be displayed
+// [5] - line color
+var sensors = {
+	'kitchen': [ 'myData', 'Kitchen', 0, 0, 1, '#0066cc' ],
+	'livingroom': [ 'livingroomData', 'Livingroom', 0, 0, 1, '#00b359' ],
+	'heating': [ 'heatingData', 'Heating ON', 0, 0, 0, '#b300b3' ],
+	'bedroom': [ 'bedroomData', 'Bedroom', 0, 0, 1 ],
+};
+
 function read_logs() {
 	$.ajax('switch_logs.sh', {
 		success: function(data) {
@@ -17,61 +149,92 @@ function read_logs() {
 		}
 	});
 }
+function get_temp(points) {
+	var total = 0;
+	var len = points.length;
+	for (i = 0; i < len; i++) {
+		total += points[i].y;
+	}
+	if (len > 0) {
+		return [points[len - 1].y, total/len];
+	} else {
+		return [points[len - 1].y, 0];
+	}
+}
 window.onload = function () {
 	if (power_status) {
-		document.getElementById('onoff').src = on_png;
+		$("#toggle").text("Turn OFF");
+		$("#toggle").addClass("redButton");
 	} else {
-		document.getElementById('onoff').src = off_png;
+		$("#toggle").text("Turn ON");
+		$("#toggle").addClass("greenButton");
 	}
-	var mypoints = myData();
+
+
+	var chart_data = new Array();
+
+	for (x in sensors) {
+		if (!jQuery.isFunction(window[sensors[x][0]])) {
+			continue;
+		}
+		var a = {
+			type: "line",
+			name: "name",
+			showInLegend: true,
+			markerType: "none",
+			xValueType: "dateTime",
+			color: "#00b359",
+			dataPoints: []
+		};
+		a.dataPoints = window[sensors[x][0]]();
+		a.name = sensors[x][1];
+		if (typeof sensors[x][5] !== 'undefined') {
+			a.color = sensors[x][5];
+		}
+		var t = get_temp(a.dataPoints);
+		sensors[x][2] = t[0];
+		sensors[x][3] = t[1];
+
+		// This is specific only for my setup
+		if (a.dataPoints[a.dataPoints.length-1].y == 23.50) {
+			a.dataPoints.push({ x: new Date().getTime(), y: 23.50 });
+		} else {
+			a.dataPoints.push({ x: new Date().getTime(), y: 20.50 });
+		}
+
+		chart_data.push(a);
+		console.log(x + " temp: " + sensors[x][2] + " avg: " + sensors[x][3] + " len: " + chart_data.length);
+	}
+
 	var chart = new CanvasJS.Chart("chartContainer", {
 		theme: "theme2",
 		zoomEnabled: true,
 		title:{ text: "Home temperatures" },
 		animationEnabled: true,
 		connectSeparatedPoints: true,
-		axisX:{labelAngle: 30},
-		axisY:{interval: 2,gridThickness: 1,gridColor: "#BBBBBB"},
-		data: [{
-			type: "line",
-			name: "Livingroom",
-			showInLegend: true,
-			markerType: "none",
-			xValueType: "dateTime",
-			//lineThickness: 3,        
-			color: "#F08080",
-        	dataPoints: mypoints
-		},{
-			type: "line",
-			name: "Heating ON",
-			showInLegend: true,
-			markerType: "none",
-			xValueType: "dateTime",
-			color: "#20B2AA",
-        	dataPoints: [],
-		}],
+		backgroundColor: "#d1d1e0",
+		axisX:{labelAngle: -30, valueFormatString: "HH:mm D.MMM"},
+		axisY:{interval: 0.5, gridThickness: 1, gridColor: "#BBBBBB", viewportMinimum: 20, interlacedColor: "#c2c2d6"},
+		data: chart_data
 	});
 	chart.render();
-	var avgtemp = 0;
-	var arraylen = mypoints.length;
-	var lastPoint = mypoints[arraylen - 1].y;
-	var total = 0;
-	var count = 0;
-	var i = 0;
-	for (; i < arraylen; i++) {
-		total = total + mypoints[i].y;
-		count++;
+
+	var current_temp = "<b>Sensors</b> - current temperature:<ul>";
+	var avg_temp = "Avg temperature(period of 5 days): <ul>";
+	for (x in sensors) {
+		if (sensors[x][4] == 0) {
+			continue;
+		}
+		current_temp += "<li>" + sensors[x][1] + " <b>" + sensors[x][2] + "</b> C</li>";
+		avg_temp += "<li>" + sensors[x][1] + " <b>" + Number(sensors[x][2].toFixed(2)) + "</b> C</li>"
 	}
-	if (count > 0) {
-		avgtemp = total/count;
-	}
-	temp = lastPoint;
-	document.getElementById('currentTemp').innerHTML = "Living room current temperature: " + lastPoint + " C  Average temprature for the period(5days): " + Number(avgtemp.toFixed(2)) + " C";
+	$("#currentTemp").html(current_temp + "</ul>");
+	$("#avgTemp").html(avg_temp + "</ul>");
+
 	read_logs();
 }
-function turn(e) {
-
-	if (e.src == on_png) {
+function toggle_button() {
+	if ($("#toggle").text() == "Turn ON") {
 		$.ajax('change.sh', {
 			data: 'off',
 			headers: { 'TEMP' : temp },
@@ -85,7 +248,9 @@ function turn(e) {
 				setTimeout(function(){$('#notification-bar').text('');}, 15000);
 			}
 		});
-		e.src = off_png;
+		$("#toggle").text("Turn OFF");
+		$("#toggle").removeClass("greenButton");
+		$("#toggle").addClass("redButton");
 	} else {
 		$.ajax('change.sh', {
 			data: 'on',
@@ -100,22 +265,25 @@ function turn(e) {
 				setTimeout(function(){$('#notification-bar').text('');}, 15000);
 			}
 		});
-		e.src = on_png;
+		$("#toggle").text("Turn ON");
+		$("#toggle").removeClass("redButton");
+		$("#toggle").addClass("greenButton");
 	}
-}
 
+}
 </script>
-<script type="text/javascript" src="/js/canvasjs.min.js"></script>
 <body>
-  <div id="currentTemp"></div>
-  <div id="chartContainer" style="height: 300px; width: 100%;"></div>
+  <div id="chartContainer"></div>
   <div id="controls">
-	<img id='onoff' src='on.png' onClick='javascript:turn(this)'>
+	<div id="buttons">
+	<a href="#" id="toggle" onClick='javascript:toggle_button()'>Turn ON</a>
+	</div>
+    <div id="currentTemp"></div>
+    <div id="avgTemp"></div>
   </div>
-  <br />
-  <div id="notification-bar"></div><br />
-  LOG:
-  <div id="log"></div>
+  <p id="notification-bar"></p><br />
+  <b>LOG:</b>
+  <p id="log"></p>
 </body>
 </html>
 
