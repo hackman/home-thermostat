@@ -189,11 +189,13 @@ window.onload = function () {
 			sensors[x][3] = total/len;
 		}
 
-		// This is specific only for my setup
-		if (a.dataPoints[a.dataPoints.length-1].y == 23.50) {
-			a.dataPoints.push({ x: new Date().getTime(), y: 23.50 });
-		} else {
-			a.dataPoints.push({ x: new Date().getTime(), y: 20.50 });
+		if (x == 'heating') {
+			// This is specific only for my setup
+			if (a.dataPoints[a.dataPoints.length-1].y == 23.50) {
+				a.dataPoints.push({ x: new Date().getTime(), y: 23.50 });
+			} else {
+				a.dataPoints.push({ x: new Date().getTime(), y: 20.50 });
+			}
 		}
 
 		chart_data.push(a);
@@ -219,7 +221,7 @@ window.onload = function () {
 			continue;
 		}
 		current_temp += "<li>" + sensors[x][1] + " <b>" + sensors[x][2].toFixed(2) + "</b> C</li>";
-		avg_temp += "<li>" + sensors[x][1] + " <b>" + sensors[x][2].toFixed(2) + "</b> C</li>"
+		avg_temp += "<li>" + sensors[x][1] + " <b>" + sensors[x][3].toFixed(2) + "</b> C</li>"
 	}
 	$("#currentTemp").html(current_temp + "</ul>");
 	$("#avgTemp").html(avg_temp + "</ul>");
