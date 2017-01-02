@@ -7,7 +7,7 @@ use LWP::Simple qw($ua get);
 use Path::Tiny qw(path);
 use Data::Dumper;
 
-my $VERSION = 3.0;
+my $VERSION = 3.1;
 our $conf = LoadFile('config.yaml');
 my $heating_state = 0;
 my $pump_state = 0;
@@ -160,13 +160,6 @@ sub check_sensor_data {
 		# skip this sensor if we don't have data for it or if the data is 0
 		next if (!defined($sensors_ref->{$sensor}[0]) or $sensors_ref->{$sensor}[0] == 0);
 
-		# Get the start and stop time for the sensor
-		my ($start_hour,$start_min) = split /:/, $conf->{sensors}->{$sensor}->{start_time};
-		my ($stop_hour,$stop_min) = split /:/, $conf->{sensors}->{$sensor}->{stop_time};
-	
-#		logger "Sensor: $sensor kill_temp: $conf_ref->{sensors}->{$sensor}->{kill_temp} max_temp: $conf_ref->{sensors}->{$sensor}->{max_temp} min_temp: $conf_ref->{sensors}->{$sensor}->{min_temp}" if $conf_ref->{debug};
-
-
 		if ($sensors_ref->{$sensor}[0] > $conf_ref->{sensors}->{$sensor}->{max_temp}) {
 			$last_decision = "Turning OFF because of sensor($sensor) max temp($sensors_ref->{$sensor}[0] > $conf_ref->{sensors}->{$sensor}->{max_temp} C)";
 			$toggle = 0;
@@ -179,6 +172,9 @@ sub check_sensor_data {
 		# do not check kill_temp and global min_temp if it is outside sensor's active time zone
 		# start time 19:00 stop time 10:00
 		# start time 08:00 stop time 22:00
+		# Get the start and stop time for the sensor
+		my ($start_hour,$start_min) = split /:/, $conf->{sensors}->{$sensor}->{start_time};
+		my ($stop_hour,$stop_min) = split /:/, $conf->{sensors}->{$sensor}->{stop_time};
 		if ($time[2] >= $start_hour and $time[2] <= $stop_hour and $time[1] >= $start_min and $time[1] <= $stop_min) {
 			if ($sensors_ref->{$sensor}[0] > $conf_ref->{kill_temp} or 
 				$sensors_ref->{$sensor}[0] > $conf_ref->{sensors}->{$sensor}->{kill_temp}) {
@@ -195,12 +191,6 @@ sub check_sensor_data {
 			$last_decision = "Turning ON because of sensor($sensor) temp $sensor:$sensors_ref->{$sensor}[0] C < global min_temp $conf_ref->{min_temp} C";
 			$toggle = 1;
 		}
-	}
-
-	# Do not turn off the burner if it has worked less then min_time
-	if ($toggle == 0 && defined($sensors_ref->{start_time}) && (time - $sensors_ref->{start_time} < $conf_ref->{min_time})) {
-		$last_decision = "Turning ON because of minimum time($conf_ref->{min_time} seconds)";
-		$toggle = 1;
 	}
 
 	# Check if the heating is triggered manually
@@ -220,9 +210,10 @@ sub check_sensor_data {
 	my ($start_time, $status) = get_current_power_status($conf_ref);
 	if ($toggle == 0 && $status == 1) {
 		my $work_time = $start_time - (time - $conf_ref->{min_work_time});
-		if ($work_time > 0) {
+		if ($work_time >= 0) {
 			logger "Disable stopping, because the minimum work time($conf_ref->{min_work_time}). The heating has worked for $work_time seconds";
-			$toggle = 0;
+			$last_decision = '';
+			$toggle = 1;
 		}
 	}
 	
