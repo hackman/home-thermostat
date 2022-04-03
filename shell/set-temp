@@ -1,0 +1,40 @@
+#!/bin/bash
+script=/root/temp.sh
+
+
+if [[ -z $QUERY_STRING ]]; then
+	echo -e "Content-Type: application/json\r\n"
+	min=$(awk -F = "/^min_temp/{gsub(/'/,\"\",\$2);print \$2}" /root/temp.sh)
+	max=$(awk -F = "/^max_temp/{gsub(/'/,\"\",\$2);print \$2}" /root/temp.sh)
+	echo "[ $min, $max]"
+	exit 0
+fi
+
+echo -e "Content-Type: text/plain\r\n"
+if [[ $QUERY_STRING =~ min_temp ]]; then
+	val=${QUERY_STRING//*=}
+	if [[ ! $val =~ ^[0-9.]+$ ]]; then
+		echo "Invalid value for min_temp"
+		exit 0
+	fi
+	sed -i "/^min_temp/s/=.*/='$val'/" $script
+	if [[ $? == 0 ]]; then
+		echo "Done"
+	else
+		echo "Error saving the new value"
+	fi
+fi
+if [[ $QUERY_STRING =~ max_temp ]]; then
+	val=${QUERY_STRING//*=}
+	if [[ ! $val =~ ^[0-9.]+$ ]]; then
+		echo "Invalid value for max_temp"
+		exit 0
+	fi
+	sed -i "/^max_temp/s/=.*/='$val'/" $script
+	if [[ $? == 0 ]]; then
+		echo "Done"
+	else
+		echo "Error saving the new value"
+	fi
+fi
+
