@@ -1,84 +1,74 @@
 #!/bin/bash
 
-version='2.0'
-min_temp='24.7'
-max_temp='25.3'
+version='3.0'
+min_temp='25.4'
+max_temp='26.2'
 arduino='10.2.2.195'
-js_dir='/var/www/html/js'
-base_dir='/var/www/html/'
 trigger='/var/run/heating'
-out_stats="$js_dir/out_stats.js"
-log_stats="$js_dir/log_stats.js"
-# Get the current temperature and humidity
-info=($(curl http://$arduino/arduino/digital/8 2>/dev/null))
+# Get the current temperature 
+kitchen=( $(curl -s http://$arduino/arduino/digital/8) )
+kitchen[1]=${kitchen[1]/C}
+
 # Get the current power state
-power=$(curl http://$arduino/arduino/digital/7 2>/dev/null)
-heating_log='/var/log/heating.log'
-# 5 days + 3 lines for the JSON structure
-retantion=7203
+power=$(curl -s http://$arduino/arduino/digital/7 2>/dev/null)
+heating_log=/dev/null
 
-temp=${info[1]}
-temp=${temp/C/}
-humi=${info[3]}
-manual_on=0
-manual_off=0
+temp=${kitchen[1]}
 
-x=$(date +%s)
-if [ -n "$temp" -a -n "$humi" ]; then
-	# in case the arduino returned an error
-	if ! [[ "$temp" =~ ^[0-9.]+$ ]]; then
-		exit 0
+turn_on() {
+	curl -s http://$arduino/arduino/digital/7/0 > /dev/null
+	curl -s http://$arduino/arduino/digital/6/0 > /dev/null
+	echo "$(date) temp $temp C, turning the heating ON " >> $heating_log
+	exit 0
+}
+turn_off() {
+	curl -s http://$arduino/arduino/digital/7/1 > /dev/null
+	curl -s http://$arduino/arduino/digital/6/1 > /dev/null
+	echo "$(date) temp $temp C, turning the heating OFF" >> $heating_log
+	exit 0
+}
+
+remove_old() {
+	file=${trigger}-$1
+	if [[ ! -f $file ]]; then return; fi
+	# Clean old trigger
+	# stat is missing on the default Arduino Yun installations
+	file_date=$(ls -e $file | awk '{print $7,$8,$10,$9}')    
+	file_time=$(date -d "$file_date" -D '%b %d %Y %H:%M:%S' +%s)
+	if [[ $file_time -lt $(($(date +%s)-3600)) ]]; then
+		rm -f $file
 	fi
+}
 
-	# Add the new values to the storage file
-	sed -i "\$i{ x: ${x}000, y: $temp }," $out_stats
-
-	# Check if we had manually triggered the heating off
-	if [ -f $trigger ]; then
-		if [ "$(stat -c %Z $trigger)" -lt "$(($(date +%s)-3600))" ]; then
-			rm $trigger
-		else
-			manual_off=1
-		fi
-	fi
-
-	# if $temp is lower then $min_temp
-	if echo "$temp $min_temp"|awk '{if($1>$2)exit 1}'; then
-		# Turn ON the heating, only if it is currently off
-		if [[ "$power" =~ off ]] && [ "$manual_off" == 0 ]; then
-			curl http://$arduino/arduino/digital/7/0
-			echo "$(date) temp $temp C, turning the heating ON " >> $heating_log
-		fi
-	fi
-
-	# Check if we had manually triggered the heating on
-	if [ -f $trigger ]; then
-		if [ "$(stat -c %Z $trigger)" -lt "$(($(date +%s)-3600))" ]; then
-			rm $trigger
-		else
-			manual_on=1
-		fi
-	fi
-
-	# if $temp is higher then $max_temp
-	if echo "$temp $max_temp"|awk '{if($1<$2)exit 1}'; then
-		# Turn OFF the heating, only if it is currently on and it is not manually triggered
-		if [[ "$power" =~ on ]] && [ "$manual_on" == 0 ]; then
-			curl http://$arduino/arduino/digital/7/1
-			echo "$(date) temp $temp C, turning the heating OFF" >> $heating_log
-		fi
-	fi
-fi
-# Save the current power status for the web page
-if [[ "$power" =~ off ]]; then
-	echo 'var power_status = 0;' >$js_dir/power_status.js
-else
-	echo 'var power_status = 1;' >$js_dir/power_status.js
+# in case the arduino returned an error
+if [[ -z $temp ]] || ! [[ $temp =~ ^[0-9.]+$ ]]; then
+	exit 0
 fi
 
-# Rotation is done here
-if [ "$(wc -l $out_stats|cut -d ' '  -f 1)" -gt $retantion ] ; then
-	first_line=($(head -n3 $out_stats |tail -n1))
-	echo ${first_line[*]} >> $log_stats
-	sed -i "/${first_line[2]}/d" $out_stats
+remove_old on
+remove_old off
+if [[ -f $trigger ]]; then
+	rm -f $trigger
+	# Handle the manual trigger
+	if [[ $power =~ on ]]; then
+		touch ${trigger}-on
+	else
+		touch ${trigger}-off
+	fi
+fi
+
+# if $temp is lower then $min_temp
+if echo "$temp $min_temp"|awk '{if($1>$2)exit 1}'; then
+	# Turn ON the heating, only if it is currently off
+	if [[ $power =~ off ]] && [[ ! -f ${trigger}-off ]]; then
+		turn_on
+	fi
+fi
+
+# if $temp is higher then $max_temp
+if echo "$temp $max_temp"|awk '{if($1<$2)exit 1}'; then
+	# Turn OFF the heating, only if it is currently on 
+	if [[ $power =~ on ]] && [[ ! -f ${trigger}-on ]]; then
+		turn_off
+	fi
 fi
