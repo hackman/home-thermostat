@@ -1,0 +1,11 @@
+#!/bin/bash
+trigger=/var/run/heating
+
+echo -e "Content-Type: text/plain\r\n\r\n"
+
+if [[ $QUERY_STRING =~ heating ]]; then
+	touch $trigger
+	echo "Done"
+else
+	echo "OK"
+fi
